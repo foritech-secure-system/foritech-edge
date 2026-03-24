@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 src/
 pyproject.toml
+devices.db
