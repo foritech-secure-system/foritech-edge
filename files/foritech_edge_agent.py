@@ -127,18 +127,49 @@ def build_signed_container(payload: bytes, device_id: str, priv: bytes, pub: byt
 # ---------------------------------------------------------------------------
 
 def collect_telemetry(device_id: str) -> dict:
-    return {
+    telemetry = {
         "device_id": device_id,
         "timestamp": int(time.time()),
         "uptime":    _read_uptime(),
         "status":    "ok",
     }
+    meter = _read_modbus()
+    if meter:
+        telemetry.update(meter)
+    return telemetry
 
 def _read_uptime() -> float:
     try:
         return float(Path("/proc/uptime").read_text().split()[0])
     except Exception:
         return 0.0
+
+def _read_modbus() -> dict:
+    """Read Schneider EM3x00 via Modbus TCP (Waveshare RS485 gateway)."""
+    try:
+        from pymodbus.client import ModbusTcpClient
+        import struct
+
+        client = ModbusTcpClient("192.168.5.81", port=502)
+        if not client.connect():
+            return {}
+
+        def read_float(address: int) -> float:
+            r = client.read_holding_registers(address=address, count=2, device_id=11)
+            if r.isError():
+                return None
+            raw = struct.pack(">HH", r.registers[0], r.registers[1])
+            return round(struct.unpack(">f", raw)[0], 4)
+
+        data = {
+            "total_active_power_kw": read_float(3059),
+            "frequency_hz":          read_float(3109),
+            "voltage_l1_v":          read_float(3027),
+        }
+        client.close()
+        return {k: v for k, v in data.items() if v is not None}
+    except Exception:
+        return {}
 
 # ---------------------------------------------------------------------------
 # Transport
