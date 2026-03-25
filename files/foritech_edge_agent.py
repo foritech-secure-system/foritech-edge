@@ -152,10 +152,13 @@ def send_container(container: bytes, cfg: dict) -> bool:
 def _send_http(container: bytes, cfg: dict) -> bool:
     try:
         import requests
+        headers = {"Content-Type": "application/octet-stream"}
+        if cfg.get("api_key"):
+            headers["X-API-Key"] = cfg["api_key"]
         resp = requests.post(
             cfg["verify_endpoint"],
             data=container,
-            headers={"Content-Type": "application/octet-stream"},
+            headers=headers,
             timeout=10,
         )
         if resp.status_code == 200:
