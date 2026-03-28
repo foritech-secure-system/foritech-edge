@@ -55,7 +55,7 @@ echo "  [..] Building liboqs (post-quantum crypto)..."
 echo "       This takes 2-5 minutes on first install..."
 
 if [ ! -f /usr/local/lib/liboqs.so ]; then
-    git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs-build
+    git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs-build
     cmake -S /tmp/liboqs-build -B /tmp/liboqs-build/build \
         -GNinja \
         -DBUILD_SHARED_LIBS=ON \
@@ -128,6 +128,7 @@ if [ ! -f "$INSTALL_DIR/config.json" ]; then
     "pub_key":  "$KEY_DIR/ml_dsa_pub.bin",
     "kyber_pub": "$KEY_DIR/kyber768_pub.bin",
     "verify_endpoint": "https://verify.foritech.bg/verify",
+    "api_key": "a8f8c8410f67dbefb7c7b34fe1599fe90c4befd06d633fb1eb2713e9cdb0755d",
     "interval": 30,
     "transport": "http"
 }
