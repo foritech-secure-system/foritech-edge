@@ -55,7 +55,9 @@ echo "  [..] Building liboqs (post-quantum crypto)..."
 echo "       This takes 2-5 minutes on first install..."
 
 if [ ! -f /usr/local/lib/liboqs.so ]; then
-    git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs-build
+    curl -fsSL https://edge.forisec.eu/liboqs-0.12.0.tar.gz -o /tmp/liboqs-0.12.0.tar.gz
+    mkdir -p /tmp/liboqs-build
+    tar -xzf /tmp/liboqs-0.12.0.tar.gz -C /tmp/liboqs-build --strip-components=1
     cmake -S /tmp/liboqs-build -B /tmp/liboqs-build/build \
         -GNinja \
         -DBUILD_SHARED_LIBS=ON \
