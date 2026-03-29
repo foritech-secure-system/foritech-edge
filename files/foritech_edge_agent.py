@@ -61,20 +61,55 @@ def load_config(path=None):
     return cfg
 
 # ---------------------------------------------------------------------------
-# Key loading
+# Key loading — AES-256-GCM encrypted storage (P0.1 hardening)
+# Passphrase: FORITECH_KEY_PASSPHRASE env var (systemd EnvironmentFile)
 # ---------------------------------------------------------------------------
+import os as _os
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC as _PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes as _hashes
+
+_ENCRYPTED_MAGIC = b"FTKENC1"
+
+def _derive_aes_key(passphrase: str, salt: bytes) -> bytes:
+    kdf = _PBKDF2HMAC(algorithm=_hashes.SHA256(), length=32, salt=salt, iterations=200_000)
+    return kdf.derive(passphrase.encode("utf-8"))
+
+def _decrypt_key_file(data: bytes, passphrase: str) -> bytes:
+    if not data.startswith(_ENCRYPTED_MAGIC):
+        raise ValueError("bad magic — not a Foritech encrypted key file")
+    offset  = len(_ENCRYPTED_MAGIC)
+    salt    = data[offset:offset + 16]
+    nonce   = data[offset + 16:offset + 28]
+    ct      = data[offset + 28:]
+    aes_key = _derive_aes_key(passphrase, salt)
+    result  = _AESGCM(aes_key).decrypt(nonce, ct, None)
+    aes_key = b"\x00" * len(aes_key)
+    return result
 
 def load_keys(cfg):
+    passphrase = _os.environ.get("FORITECH_KEY_PASSPHRASE")
     for key in ["priv_key", "pub_key", "kyber_pub"]:
         p = Path(cfg[key])
         if not p.exists():
             _fail(f"Key not found: {p}")
             sys.exit(1)
-    return (
-        Path(cfg["priv_key"]).read_bytes(),
-        Path(cfg["pub_key"]).read_bytes(),
-        Path(cfg["kyber_pub"]).read_bytes(),
-    )
+    raw_priv  = Path(cfg["priv_key"]).read_bytes()
+    raw_pub   = Path(cfg["pub_key"]).read_bytes()
+    raw_kyber = Path(cfg["kyber_pub"]).read_bytes()
+    if raw_priv.startswith(_ENCRYPTED_MAGIC):
+        if not passphrase:
+            _fail("Private key is encrypted but FORITECH_KEY_PASSPHRASE is not set")
+            sys.exit(1)
+        try:
+            raw_priv = _decrypt_key_file(raw_priv, passphrase)
+            _ok("Private key decrypted (AES-256-GCM)")
+        except Exception as e:
+            _fail(f"Private key decryption failed: {e}")
+            sys.exit(1)
+    else:
+        _warn("Private key is PLAINTEXT — encrypt with foritech_encrypt_key.py")
+    return raw_priv, raw_pub, raw_kyber
 
 # ---------------------------------------------------------------------------
 # Minimal signed container (STANDALONE — no foritech SDK)
