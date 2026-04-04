@@ -1,0 +1,13 @@
+[Unit]
+Description=Foritech Edge Agent v0.8
+After=network.target
+
+[Service]
+ExecStart=/opt/foritech-edge/venv/bin/python -u /opt/foritech-edge/foritech_edge_agent.py /opt/foritech-edge/config.json
+Restart=always
+RestartSec=10
+EnvironmentFile=/etc/foritech/edge.env
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
